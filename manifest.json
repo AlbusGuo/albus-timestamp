@@ -1,10 +1,10 @@
 {
-	"id": "update-time-on-edit",
-	"name": "Update time on edit",
-	"version": "2.4.0",
-	"minAppVersion": "1.4.4",
-	"description": "Keep front matter in sync with the last edit time",
-	"author": "@beaussan",
-	"authorUrl": "https://github.com/beaussan",
-	"isDesktopOnly": false
+  "id": "albus-timestamp",
+  "name": "Timestamp",
+  "version": "3.0.1",
+  "minAppVersion": "1.11.0",
+  "description": "Keep the creation and modification time in YAML properties in sync with the file time",
+  "author": "@albus",
+  "authorUrl": "https://github.com/albusguo",
+  "isDesktopOnly": false
 }

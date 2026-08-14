@@ -1,7 +1,7 @@
 {
-  "name": "obsidian-update-time-on-edit",
-  "version": "2.4.0",
-  "description": "Keep the updated front matter header in sync with the last edit",
+  "name": "albus-timestamp",
+  "version": "3.0.1",
+  "description": "Keep the creation and modification time in YAML properties in sync with the file time",
   "main": "main.js",
   "scripts": {
     "dev": "node esbuild.config.mjs",
@@ -10,42 +10,24 @@
     "format:write": "prettier --write \"**/*.{ts,json}\"",
     "format:check": "prettier --list-different \"**/*.{ts,json}\""
   },
-  "keywords": [],
-  "author": "@beaussan",
+  "author": "@albus",
   "license": "MIT",
   "devDependencies": {
-    "@types/jest": "27.0.2",
     "@types/node": "^16.11.6",
-    "@typescript-eslint/eslint-plugin": "5.29.0",
-    "@typescript-eslint/parser": "5.29.0",
     "browserslist": "^4.21.10",
     "builtin-modules": "3.3.0",
     "chokidar": "^3.5.3",
     "dotenv": "^16.3.1",
     "esbuild": "0.17.3",
-    "esbuild-copy-static-files": "^0.1.0",
     "esbuild-plugin-copy": "^2.1.1",
-    "esbuild-plugin-replace": "^1.4.0",
     "fs-jetpack": "^5.1.0",
-    "husky": "6.0.0",
-    "jest": "27.2.5",
     "lightningcss": "^1.21.5",
-    "obsidian": "^1.4.4",
+    "obsidian": "^1.11.0",
     "prettier": "2.2.1",
-    "pretty-quick": "3.1.0",
-    "ts-jest": "27.0.7",
-    "tslib": "2.4.0",
     "typescript": "4.7.4"
   },
   "dependencies": {
-    "@popperjs/core": "2.10.2",
-    "date-fns": "2.21.1",
-    "js-sha256": "^0.10.1",
-    "rxjs": "6.6.7"
+    "date-fns": "2.21.1"
   },
-  "husky": {
-    "hooks": {
-      "pre-commit": "pretty-quick --staged"
-    }
-  }
+  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
 }

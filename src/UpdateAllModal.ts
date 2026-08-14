@@ -1,5 +1,5 @@
-import { App, ButtonComponent, Modal, Notice, Setting } from 'obsidian';
-import UpdateTimeOnSavePlugin from './main';
+import { App, Modal, Notice, Setting } from 'obsidian';
+import TimestampPlugin from './main';
 
 const createTextSpan = (text: string): HTMLSpanElement => {
   const textSpan = document.createElement('span');
@@ -10,20 +10,18 @@ const createTextSpan = (text: string): HTMLSpanElement => {
 const createBr = () => document.createElement('br');
 
 export class UpdateAllModal extends Modal {
-  plugin: UpdateTimeOnSavePlugin;
+  private readonly plugin: TimestampPlugin;
 
-  divContainer?: HTMLDivElement;
-  runButton?: ButtonComponent;
-  cancelButton?: ButtonComponent;
-  settingsSection?: Setting;
-  isOpened = false;
+  private divContainer?: HTMLDivElement;
+  private settingsSection?: Setting;
+  private isOpened = false;
 
-  constructor(app: App, plugin: UpdateTimeOnSavePlugin) {
+  constructor(app: App, plugin: TimestampPlugin) {
     super(app);
     this.plugin = plugin;
   }
 
-  async onRun() {
+  async onRun(): Promise<void> {
     if (!this.divContainer) {
       this.close();
       return;
@@ -44,7 +42,7 @@ export class UpdateAllModal extends Modal {
     wrapperBar.append(progress, fileCounter);
     wrapperBar.addClass('progress-section');
 
-    const header = createTextSpan('Updating files...');
+    const header = createTextSpan('正在更新文件');
 
     this.divContainer.replaceChildren(header, wrapperBar);
 
@@ -53,49 +51,46 @@ export class UpdateAllModal extends Modal {
     }
     for (let i = 0; i < allMdFiles.length; i++) {
       if (!this.isOpened) {
-        new Notice('Bulk update for header stopped.', 2000);
+        new Notice('批量更新时间属性的操作已停止', 2000);
         return;
       }
       updateCount(i + 1);
-      await this.plugin.handleFileChange(allMdFiles[i], 'bulk');
+      await this.plugin.handleFileChange(allMdFiles[i]);
     }
 
-    const doneMessage = createTextSpan(
-      'Done ! You can safely close this modal.',
-    );
+    const doneMessage = createTextSpan('更新完成, 可以关闭此窗口');
     const el = new Setting(this.containerEl).addButton((btn) => {
-      btn.setButtonText('Close').onClick(() => {
+      btn.setButtonText('关闭').onClick(() => {
         this.close();
       });
     }).settingEl;
     this.divContainer.replaceChildren(doneMessage, createBr(), createBr(), el);
   }
 
-  async onOpen() {
+  async onOpen(): Promise<void> {
     this.isOpened = true;
-    let { contentEl } = this;
-    contentEl.addClass('update-time-on-edit--bulk-modal');
+    const { contentEl } = this;
+    contentEl.addClass('timestamp-bulk-modal');
     const header = contentEl.createEl('h2', {
-      text: `Finding eligible files in the vault...`,
+      text: '正在查找仓库中符合条件的文件',
     });
 
     const allMdFiles = await this.plugin.getAllFilesPossiblyAffected();
 
-    header.setText(`Update all ${allMdFiles.length} files in the vault`);
+    header.setText(`更新仓库中的 ${allMdFiles.length} 个文件`);
 
     const div = contentEl.createDiv();
     this.divContainer = div;
 
     div.append(
       div.createSpan({
-        text:
-          'This will update all created and updated time on files affected by this plugin',
+        text: '此操作将批量更新所有符合条件文件的创建时间和更新时间属性',
       }),
       createBr(),
       createBr(),
       div.createSpan({
-        text: `WARNING: this action will affect ${allMdFiles.length} in your vault. Make sure you tuned the settings correctly, and make a backup.`,
-        cls: 'update-time-on-edit--settings--warn',
+        text: `警告: 此操作将修改仓库中的 ${allMdFiles.length} 个文件, 请确认设置正确, 并提前备份仓库`,
+        cls: 'timestamp-bulk-modal__warning',
       }),
       createBr(),
       createBr(),
@@ -104,22 +99,21 @@ export class UpdateAllModal extends Modal {
     this.settingsSection = new Setting(contentEl)
       .addButton((btn) => {
         btn
-          .setButtonText('Run')
+          .setButtonText('开始')
           .setCta()
           .onClick(() => {
-            this.onRun();
+            void this.onRun();
           });
-        this.runButton = btn;
       })
       .addButton((btn) => {
-        this.cancelButton = btn;
-        btn.setButtonText('Cancel').onClick(() => {
+        btn.setButtonText('取消').onClick(() => {
           this.close();
         });
       });
   }
-  onClose() {
-    let { contentEl } = this;
+
+  onClose(): void {
+    const { contentEl } = this;
     contentEl.empty();
     this.isOpened = false;
   }

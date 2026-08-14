@@ -1,19 +1,19 @@
-.time_search {
-    width: calc(100% - 20px);
+.timestamp-folder-search {
+  width: calc(100% - 20px);
 }
 
-.update-time-on-edit--settings--warn {
-    color: #ff5a5a
+.timestamp-bulk-modal__warning {
+  color: var(--text-error);
 }
 
-.update-time-on-edit--bulk-modal {
-    .progress-section {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
+.timestamp-bulk-modal {
+  .progress-section {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
 
-        & progress {
-            flex: 1
-        }
+    & progress {
+      flex: 1;
     }
+  }
 }

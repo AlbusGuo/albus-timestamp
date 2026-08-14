@@ -1,316 +1,157 @@
-import { App, PluginSettingTab, SearchComponent, Setting } from 'obsidian';
-import UpdateTimeOnSavePlugin from './main';
+import {
+  App,
+  normalizePath,
+  PluginSettingTab,
+  SearchComponent,
+  SettingGroup,
+} from 'obsidian';
+import TimestampPlugin from './main';
 import { FolderSuggest } from './suggesters/FolderSuggester';
-import { onlyUniqueArray } from './utils';
-import { format } from 'date-fns';
 import { UpdateAllModal } from './UpdateAllModal';
-import { UpdateAllCacheData } from './UpdateAllCacheData';
 
-export interface UpdateTimeOnEditSettings {
-  dateFormat: string;
-  enableNumberProperties: boolean;
-  enableCreateTime: boolean;
+export const TIMESTAMP_DATE_FORMAT = "yyyy-MM-dd'T'HH:mm";
+
+export interface TimestampSettings {
   headerUpdated: string;
   headerCreated: string;
   minMinutesBetweenSaves: number;
-  // Union because of legacy
-  ignoreGlobalFolder?: string | string[];
-  ignoreCreatedFolder?: string[];
-
-  enableExperimentalHash?: boolean;
-  fileHashMap: Record<string, string>;
+  excludedFolders: string[];
 }
 
-export const DEFAULT_SETTINGS: UpdateTimeOnEditSettings = {
-  dateFormat: "yyyy-MM-dd'T'HH:mm",
-  enableNumberProperties: false,
-  enableCreateTime: true,
+export const DEFAULT_SETTINGS: TimestampSettings = {
   headerUpdated: 'updated',
   headerCreated: 'created',
   minMinutesBetweenSaves: 1,
-  ignoreGlobalFolder: [],
-  ignoreCreatedFolder: [],
-  enableExperimentalHash: false,
-  fileHashMap: {},
+  excludedFolders: [],
 };
 
-export class UpdateTimeOnEditSettingsTab extends PluginSettingTab {
-  plugin: UpdateTimeOnSavePlugin;
+export class TimestampSettingsTab extends PluginSettingTab {
+  private readonly plugin: TimestampPlugin;
 
-  constructor(app: App, plugin: UpdateTimeOnSavePlugin) {
+  constructor(app: App, plugin: TimestampPlugin) {
     super(app, plugin);
     this.plugin = plugin;
   }
 
   display(): void {
-    let { containerEl } = this;
-
+    const { containerEl } = this;
     containerEl.empty();
 
-    containerEl.createEl('h2', { text: 'Global settings' });
-
-    this.addExcludedFoldersSetting();
-    this.addTimeBetweenUpdates();
-    this.addDateFormat();
-    this.addEnableNumberProperties();
-
-    new Setting(this.containerEl)
-      .setName('Update all files')
-      .setDesc(
-        'This plugin will only work on new files, but if you want to update all files in your vault at once, you can do it here.',
-      )
-      .addButton((cb) => {
-        cb.setButtonText('Update all files').onClick(() => {
-          new UpdateAllModal(this.app, this.plugin).open();
-        });
-      });
-
-    containerEl.createEl('h2', { text: 'Updated at' });
-
-    this.addFrontMatterUpdated();
-
-    containerEl.createEl('h2', { text: 'Created at' });
-
-    this.addEnableCreated();
-    this.addFrontMatterCreated();
-    this.addExcludedCreatedFoldersSetting();
-
-    containerEl.createEl('h2', { text: 'Experimental settings' });
-
-    new Setting(this.containerEl)
-      .setName('Enable hash matcher')
-      .setDesc(
-        'Using a hash system to prevent too many updates happening, especially with sync.',
-      )
-      .addToggle((cb) =>
-        cb
-          .setValue(this.plugin.settings.enableExperimentalHash ?? false)
-          .onChange(async (newValue) => {
-            this.plugin.settings.enableExperimentalHash = newValue;
-            await this.saveSettings();
-          }),
-      )
-      .addButton((cb) =>
-        cb.setButtonText('Fill initial cache').onClick(() => {
-          new UpdateAllCacheData(this.app, this.plugin).open();
-        }),
-      );
-  }
-
-  async saveSettings() {
-    await this.plugin.saveSettings();
-  }
-
-  addDateFormat(): void {
-    this.createDateFormatEditor({
-      getValue: () => this.plugin.settings.dateFormat,
-      name: 'Date format',
-      description: 'The date format for read and write',
-      setValue: (newValue) => (this.plugin.settings.dateFormat = newValue),
+    const propertiesGroup = new SettingGroup(containerEl).setHeading('属性');
+    propertiesGroup.addSetting((setting) => {
+      setting
+        .setName('更新时间属性名')
+        .setDesc('在 YAML 属性中用于记录更新时间的属性名称')
+        .addText((text) =>
+          text
+            .setPlaceholder(DEFAULT_SETTINGS.headerUpdated)
+            .setValue(this.plugin.settings.headerUpdated)
+            .onChange(async (value) => {
+              this.plugin.settings.headerUpdated =
+                value.trim() || DEFAULT_SETTINGS.headerUpdated;
+              await this.plugin.saveSettings();
+            }),
+        );
     });
-  }
-
-  createDateFormatEditor({
-    description,
-    name,
-    getValue,
-    setValue,
-  }: DateFormatArgs) {
-    const createDoc = () => {
-      const descr = document.createDocumentFragment();
-      descr.append(
-        description,
-        descr.createEl('br'),
-        'Check ',
-        descr.createEl('a', {
-          href: 'https://date-fns.org/v2.25.0/docs/format',
-          text: 'date-fns documentation',
-        }),
-        descr.createEl('br'),
-        `Currently: ${format(new Date(), getValue())}`,
-        descr.createEl('br'),
-        `Obsidian default format for date properties: yyyy-MM-dd'T'HH:mm`,
-      );
-      return descr;
-    };
-    let dformat = new Setting(this.containerEl)
-      .setName(name)
-      .setDesc(createDoc())
-      .addText((text) =>
-        text
-          .setPlaceholder(DEFAULT_SETTINGS.dateFormat)
-          .setValue(getValue())
-          .onChange(async (value) => {
-            setValue(value);
-            dformat.setDesc(createDoc());
-            await this.saveSettings();
-          }),
-      );
-  }
-
-  addEnableNumberProperties(): void {
-    new Setting(this.containerEl)
-      .setName('Enable number property type')
-      .setDesc(
-        'Assigns numbers to date properties (instead of strings) when using numeric formats, like Unix timestamps.',
-      )
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.enableNumberProperties)
-          .onChange(async (newValue) => {
-            this.plugin.settings.enableNumberProperties = newValue;
-            await this.saveSettings();
-          }),
-      );
-  }
-
-  addTimeBetweenUpdates(): void {
-    new Setting(this.containerEl)
-      .setName('Minimum number of minutes between update')
-      .setDesc('If your files are updating too often, increase this.')
-      .addSlider((slider) =>
-        slider
-          .setLimits(1, 30, 1)
-          .setValue(this.plugin.settings.minMinutesBetweenSaves)
-          .onChange(async (value) => {
-            this.plugin.settings.minMinutesBetweenSaves = value;
-            await this.saveSettings();
-          })
-          .setDynamicTooltip(),
-      );
-  }
-
-  addEnableCreated(): void {
-    new Setting(this.containerEl)
-      .setName('Enable the created front matter key update')
-      .setDesc('Currently, it is set to now if not present')
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.enableCreateTime)
-          .onChange(async (newValue) => {
-            this.plugin.settings.enableCreateTime = newValue;
-            await this.saveSettings();
-            this.display();
-          }),
-      );
-  }
-
-  addFrontMatterUpdated(): void {
-    new Setting(this.containerEl)
-      .setName('Front matter updated name')
-      .setDesc('The key in the front matter yaml for the update time.')
-      .addText((text) =>
-        text
-          .setPlaceholder('updated')
-          .setValue(this.plugin.settings.headerUpdated ?? '')
-          .onChange(async (value) => {
-            this.plugin.settings.headerUpdated = value;
-            await this.saveSettings();
-          }),
-      );
-  }
-
-  addFrontMatterCreated(): void {
-    if (!this.plugin.settings.enableCreateTime) {
-      return;
-    }
-    new Setting(this.containerEl)
-      .setName('Front matter created name')
-      .setDesc('The key in the front matter yaml for the creation time')
-      .addText((text) =>
-        text
-          .setPlaceholder('updated')
-          .setValue(this.plugin.settings.headerCreated ?? '')
-          .onChange(async (value) => {
-            this.plugin.settings.headerCreated = value;
-            await this.saveSettings();
-          }),
-      );
-  }
-
-  addExcludedCreatedFoldersSetting(): void {
-    if (!this.plugin.settings.enableCreateTime) {
-      return;
-    }
-
-    this.doSearchAndRemoveList({
-      currentList: this.plugin.settings.ignoreCreatedFolder ?? [],
-      setValue: async (newValue) => {
-        this.plugin.settings.ignoreCreatedFolder = newValue;
-      },
-      name: 'Folder(s) to exclude for updating the created property',
-      description:
-        'Any file updated in this folder will not trigger a created update.',
+    propertiesGroup.addSetting((setting) => {
+      setting
+        .setName('创建时间属性名')
+        .setDesc('在 YAML 属性中用于记录创建时间的属性名称')
+        .addText((text) =>
+          text
+            .setPlaceholder(DEFAULT_SETTINGS.headerCreated)
+            .setValue(this.plugin.settings.headerCreated)
+            .onChange(async (value) => {
+              this.plugin.settings.headerCreated =
+                value.trim() || DEFAULT_SETTINGS.headerCreated;
+              await this.plugin.saveSettings();
+            }),
+        );
     });
-  }
 
-  addExcludedFoldersSetting(): void {
-    this.doSearchAndRemoveList({
-      currentList: this.plugin.getIgnoreFolders(),
-      setValue: async (newValue) => {
-        this.plugin.settings.ignoreGlobalFolder = newValue;
-      },
-      name: 'Folder to exclude of all updates',
-      description:
-        'Any file updated in this folder will not trigger an updated and created update.',
-    });
-  }
-
-  doSearchAndRemoveList({
-    currentList,
-    setValue,
-    description,
-    name,
-  }: ArgsSearchAndRemove) {
-    let searchInput: SearchComponent | undefined;
-    new Setting(this.containerEl)
-      .setName(name)
-      .setDesc(description)
-      .addSearch((cb) => {
-        searchInput = cb;
-        new FolderSuggest(this.app, cb.inputEl);
-        cb.setPlaceholder('Example: folder1/folder2');
-        // @ts-ignore
-        cb.containerEl.addClass('time_search');
-      })
-      .addButton((cb) => {
-        cb.setIcon('plus');
-        cb.setTooltip('Add folder');
-        cb.onClick(async () => {
-          if (!searchInput) {
-            return;
-          }
-          const newFolder = searchInput.getValue();
-
-          await setValue([...currentList, newFolder].filter(onlyUniqueArray));
-          await this.saveSettings();
-          searchInput.setValue('');
-          this.display();
-        });
-      });
-
-    currentList.forEach((ignoreFolder) =>
-      new Setting(this.containerEl).setName(ignoreFolder).addButton((button) =>
-        button.setButtonText('Remove').onClick(async () => {
-          await setValue(currentList.filter((value) => value !== ignoreFolder));
-          await this.saveSettings();
-          this.display();
-        }),
-      ),
+    const updateRulesGroup = new SettingGroup(containerEl).setHeading(
+      '更新规则',
     );
+    updateRulesGroup.addSetting((setting) => {
+      setting
+        .setName('最短更新间隔')
+        .setDesc('两次更新时间属性之间至少间隔的分钟数')
+        .addSlider((slider) =>
+          slider
+            .setLimits(1, 30, 1)
+            .setValue(this.plugin.settings.minMinutesBetweenSaves)
+            .onChange(async (value) => {
+              this.plugin.settings.minMinutesBetweenSaves = value;
+              await this.plugin.saveSettings();
+            })
+            .setDynamicTooltip(),
+        );
+    });
+    this.addExcludedFoldersSetting(updateRulesGroup);
+
+    const bulkActionsGroup = new SettingGroup(containerEl).setHeading(
+      '批量操作',
+    );
+    bulkActionsGroup.addSetting((setting) => {
+      setting
+        .setName('更新所有文件')
+        .setDesc('立即更新仓库中所有符合条件文件的创建时间和更新时间属性')
+        .addButton((button) => {
+          button.setButtonText('更新所有文件').onClick(() => {
+            new UpdateAllModal(this.app, this.plugin).open();
+          });
+        });
+    });
+  }
+
+  private addExcludedFoldersSetting(group: SettingGroup): void {
+    let searchInput: SearchComponent | undefined;
+    group.addSetting((setting) => {
+      setting
+        .setName('排除文件夹')
+        .setDesc('这些文件夹及其子文件夹中的文件不会写入创建时间或更新时间属性')
+        .addSearch((search) => {
+          searchInput = search;
+          new FolderSuggest(this.app, search.inputEl);
+          search.setPlaceholder('示例: folder1/folder2');
+          search.inputEl.addClass('timestamp-folder-search');
+        })
+        .addExtraButton((button) => {
+          button
+            .setIcon('plus-circle')
+            .setTooltip('添加文件夹')
+            .onClick(async () => {
+              const folder = normalizePath(
+                searchInput?.getValue().trim() ?? '',
+              );
+              if (!folder) {
+                return;
+              }
+
+              this.plugin.settings.excludedFolders = Array.from(
+                new Set([...this.plugin.settings.excludedFolders, folder]),
+              );
+              await this.plugin.saveSettings();
+              this.display();
+            });
+        });
+    });
+
+    this.plugin.settings.excludedFolders.forEach((excludedFolder) => {
+      group.addSetting((setting) => {
+        setting.setName(excludedFolder).addExtraButton((button) =>
+          button
+            .setIcon('trash')
+            .setTooltip('移除文件夹')
+            .onClick(async () => {
+              this.plugin.settings.excludedFolders = this.plugin.settings.excludedFolders.filter(
+                (folder) => folder !== excludedFolder,
+              );
+              await this.plugin.saveSettings();
+              this.display();
+            }),
+        );
+      });
+    });
   }
 }
-
-type DateFormatArgs = {
-  getValue: () => string;
-  setValue: (newValue: string) => void;
-  name: string;
-  description: string;
-};
-
-type ArgsSearchAndRemove = {
-  name: string;
-  description: string;
-  currentList: string[];
-  setValue: (newValue: string[]) => Promise<void>;
-};
