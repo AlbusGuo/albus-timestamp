@@ -1,10 +1,10 @@
 {
   "id": "albus-timestamp",
   "name": "Timestamp",
-  "version": "3.0.1",
+  "version": "3.0.2",
   "minAppVersion": "1.11.0",
   "description": "Keep the creation and modification time in YAML properties in sync with the file time",
-  "author": "@albus",
+  "author": "Albus",
   "authorUrl": "https://github.com/albusguo",
   "isDesktopOnly": false
 }

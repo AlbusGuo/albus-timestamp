@@ -1,6 +1,6 @@
 {
   "name": "albus-timestamp",
-  "version": "3.0.1",
+  "version": "3.0.2",
   "description": "Keep the creation and modification time in YAML properties in sync with the file time",
   "main": "main.js",
   "scripts": {
@@ -10,7 +10,7 @@
     "format:write": "prettier --write \"**/*.{ts,json}\"",
     "format:check": "prettier --list-different \"**/*.{ts,json}\""
   },
-  "author": "@albus",
+  "author": "Albus",
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^16.11.6",

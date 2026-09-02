@@ -1,5 +1,64 @@
-.timestamp-folder-search {
-  width: calc(100% - 20px);
+.timestamp-folder-setting {
+  align-items: center;
+}
+
+.timestamp-folder-setting .setting-item-info {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding-right: 12px;
+}
+
+.timestamp-folder-setting .setting-item-name,
+.timestamp-folder-setting .setting-item-description {
+  overflow-wrap: anywhere;
+}
+
+.timestamp-folder-setting .setting-item-description {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.timestamp-folder-setting .setting-item-control {
+  flex: none;
+  margin-left: auto;
+}
+
+.timestamp-folder-editor-modal {
+  width: min(660px, calc(100vw - 24px));
+  max-width: min(660px, calc(100vw - 24px));
+}
+
+.timestamp-folder-editor {
+  display: flex;
+  flex-direction: column;
+  padding: 2px;
+  box-sizing: border-box;
+}
+
+.timestamp-folder-editor > .setting-item {
+  min-height: 48px;
+  padding: 8px 0;
+}
+
+.timestamp-folder-editor > .setting-item > .setting-item-info {
+  flex: 0 0 190px;
+  min-width: 0;
+}
+
+.timestamp-folder-editor > .setting-item > .setting-item-control {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.timestamp-folder-editor
+  > .setting-item
+  > .setting-item-control
+  input[type='text'] {
+  width: 100%;
+  min-width: 0;
 }
 
 .timestamp-bulk-modal__warning {
@@ -15,5 +74,21 @@
     & progress {
       flex: 1;
     }
+  }
+}
+
+@media (max-width: 600px) {
+  .timestamp-folder-editor > .setting-item {
+    align-items: initial;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .timestamp-folder-editor > .setting-item > .setting-item-info {
+    flex-basis: auto;
+  }
+
+  .timestamp-folder-editor > .setting-item > .setting-item-control {
+    width: 100%;
   }
 }

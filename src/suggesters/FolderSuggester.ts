@@ -1,6 +1,11 @@
-import { AbstractInputSuggest, TFolder } from 'obsidian';
+import { AbstractInputSuggest, App, TFolder } from 'obsidian';
 
 export class FolderSuggest extends AbstractInputSuggest<TFolder> {
+  constructor(app: App, inputEl: HTMLInputElement) {
+    super(app, inputEl);
+    this.limit = 0;
+  }
+
   protected getSuggestions(query: string): TFolder[] {
     const normalizedQuery = query.toLocaleLowerCase();
     return this.app.vault

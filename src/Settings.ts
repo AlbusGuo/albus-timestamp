@@ -1,12 +1,6 @@
-import {
-  App,
-  normalizePath,
-  PluginSettingTab,
-  SearchComponent,
-  SettingGroup,
-} from 'obsidian';
+import { App, PluginSettingTab, Setting, SettingGroup } from 'obsidian';
 import TimestampPlugin from './main';
-import { FolderSuggest } from './suggesters/FolderSuggester';
+import { ExcludedFolderModal } from './modals/ExcludedFolderModal';
 import { UpdateAllModal } from './UpdateAllModal';
 
 export const TIMESTAMP_DATE_FORMAT = "yyyy-MM-dd'T'HH:mm";
@@ -27,6 +21,8 @@ export const DEFAULT_SETTINGS: TimestampSettings = {
 
 export class TimestampSettingsTab extends PluginSettingTab {
   private readonly plugin: TimestampPlugin;
+  private savedScrollTop = 0;
+  private hasRendered = false;
 
   constructor(app: App, plugin: TimestampPlugin) {
     super(app, plugin);
@@ -35,10 +31,15 @@ export class TimestampSettingsTab extends PluginSettingTab {
 
   display(): void {
     const { containerEl } = this;
+    if (this.hasRendered) {
+      this.savedScrollTop = containerEl.scrollTop;
+    }
+    this.hasRendered = false;
     containerEl.empty();
 
-    const propertiesGroup = new SettingGroup(containerEl).setHeading('属性');
-    propertiesGroup.addSetting((setting) => {
+    new Setting(containerEl).setName('通用').setHeading();
+    const generalGroup = new SettingGroup(containerEl);
+    generalGroup.addSetting((setting) => {
       setting
         .setName('更新时间属性名')
         .setDesc('在 YAML 属性中用于记录更新时间的属性名称')
@@ -53,7 +54,7 @@ export class TimestampSettingsTab extends PluginSettingTab {
             }),
         );
     });
-    propertiesGroup.addSetting((setting) => {
+    generalGroup.addSetting((setting) => {
       setting
         .setName('创建时间属性名')
         .setDesc('在 YAML 属性中用于记录创建时间的属性名称')
@@ -68,11 +69,7 @@ export class TimestampSettingsTab extends PluginSettingTab {
             }),
         );
     });
-
-    const updateRulesGroup = new SettingGroup(containerEl).setHeading(
-      '更新规则',
-    );
-    updateRulesGroup.addSetting((setting) => {
+    generalGroup.addSetting((setting) => {
       setting
         .setName('最短更新间隔')
         .setDesc('两次更新时间属性之间至少间隔的分钟数')
@@ -87,7 +84,8 @@ export class TimestampSettingsTab extends PluginSettingTab {
             .setDynamicTooltip(),
         );
     });
-    this.addExcludedFoldersSetting(updateRulesGroup);
+
+    this.addExcludedFoldersSection(containerEl);
 
     const bulkActionsGroup = new SettingGroup(containerEl).setHeading(
       '批量操作',
@@ -102,56 +100,102 @@ export class TimestampSettingsTab extends PluginSettingTab {
           });
         });
     });
+
+    containerEl.scrollTop = this.savedScrollTop;
+    this.hasRendered = true;
   }
 
-  private addExcludedFoldersSetting(group: SettingGroup): void {
-    let searchInput: SearchComponent | undefined;
-    group.addSetting((setting) => {
-      setting
-        .setName('排除文件夹')
-        .setDesc('这些文件夹及其子文件夹中的文件不会写入创建时间或更新时间属性')
-        .addSearch((search) => {
-          searchInput = search;
-          new FolderSuggest(this.app, search.inputEl);
-          search.setPlaceholder('示例: folder1/folder2');
-          search.inputEl.addClass('timestamp-folder-search');
-        })
-        .addExtraButton((button) => {
-          button
-            .setIcon('plus-circle')
-            .setTooltip('添加文件夹')
-            .onClick(async () => {
-              const folder = normalizePath(
-                searchInput?.getValue().trim() ?? '',
-              );
-              if (!folder) {
-                return;
-              }
+  hide(): void {
+    if (this.hasRendered) {
+      this.savedScrollTop = this.containerEl.scrollTop;
+    }
+    this.hasRendered = false;
+    super.hide();
+  }
 
-              this.plugin.settings.excludedFolders = Array.from(
-                new Set([...this.plugin.settings.excludedFolders, folder]),
-              );
-              await this.plugin.saveSettings();
-              this.display();
-            });
-        });
-    });
+  private addExcludedFoldersSection(containerEl: HTMLElement): void {
+    const heading = new Setting(containerEl).setName('排除文件夹').setHeading();
+    heading.addExtraButton((button) =>
+      button
+        .setIcon('plus')
+        .setTooltip('添加文件夹')
+        .onClick(() => {
+          this.openExcludedFolderModal();
+        }),
+    );
+
+    const foldersGroup = new SettingGroup(containerEl);
+    if (this.plugin.settings.excludedFolders.length === 0) {
+      foldersGroup.addSetting((setting) => {
+        setting
+          .setName('还没有添加排除文件夹')
+          .setDesc('点击标题右侧按钮添加文件夹');
+      });
+      return;
+    }
 
     this.plugin.settings.excludedFolders.forEach((excludedFolder) => {
-      group.addSetting((setting) => {
-        setting.setName(excludedFolder).addExtraButton((button) =>
-          button
-            .setIcon('trash')
-            .setTooltip('移除文件夹')
-            .onClick(async () => {
-              this.plugin.settings.excludedFolders = this.plugin.settings.excludedFolders.filter(
-                (folder) => folder !== excludedFolder,
-              );
-              await this.plugin.saveSettings();
-              this.display();
-            }),
-        );
+      foldersGroup.addSetting((setting) => {
+        setting.settingEl.addClass('timestamp-folder-setting');
+        setting
+          .setName(excludedFolder)
+          .setDesc('该文件夹及其子文件夹不会写入创建时间或更新时间属性')
+          .addExtraButton((button) =>
+            button
+              .setIcon('pencil')
+              .setTooltip('编辑文件夹')
+              .onClick(() => {
+                this.openExcludedFolderModal(excludedFolder);
+              }),
+          )
+          .addExtraButton((button) =>
+            button
+              .setIcon('trash')
+              .setTooltip('删除文件夹')
+              .onClick(() => {
+                void this.removeExcludedFolder(excludedFolder);
+              }),
+          );
       });
     });
+  }
+
+  private openExcludedFolderModal(originalFolder?: string): void {
+    new ExcludedFolderModal(this.app, {
+      initialFolder: originalFolder ?? '',
+      onSave: async (folder) => {
+        const folders = this.plugin.settings.excludedFolders;
+        if (originalFolder === undefined) {
+          this.plugin.settings.excludedFolders = [
+            ...folders.filter((existingFolder) => existingFolder !== folder),
+            folder,
+          ];
+        } else {
+          let originalIndex = folders.indexOf(originalFolder);
+          if (originalIndex < 0) {
+            throw new Error('要编辑的排除文件夹已不存在');
+          }
+
+          const duplicateIndex = folders.indexOf(folder);
+          if (duplicateIndex >= 0 && duplicateIndex !== originalIndex) {
+            folders.splice(duplicateIndex, 1);
+            if (duplicateIndex < originalIndex) {
+              originalIndex--;
+            }
+          }
+          folders[originalIndex] = folder;
+        }
+        await this.plugin.saveSettings();
+        this.display();
+      },
+    }).open();
+  }
+
+  private async removeExcludedFolder(folderToRemove: string): Promise<void> {
+    this.plugin.settings.excludedFolders = this.plugin.settings.excludedFolders.filter(
+      (folder) => folder !== folderToRemove,
+    );
+    await this.plugin.saveSettings();
+    this.display();
   }
 }

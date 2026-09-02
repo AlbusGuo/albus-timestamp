@@ -68,7 +68,10 @@ export default class TimestampPlugin extends Plugin {
     }
 
     return this.settings.excludedFolders.some(
-      (folder) => file.path === folder || file.path.startsWith(`${folder}/`),
+      (folder) =>
+        (folder === '/' && file.parent?.path === '/') ||
+        file.path === folder ||
+        file.path.startsWith(`${folder}/`),
     );
   }
 
